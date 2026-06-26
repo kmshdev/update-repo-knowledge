@@ -14,6 +14,14 @@ from urllib.parse import unquote, urlparse
 
 LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 ADAPTER_POINTER_PATTERN = re.compile(r"\bAGENTS\.md\b|canonical", re.IGNORECASE)
+ADAPTER_GENERATED_HEADER_LINES = 10
+ADAPTER_SHORT_POINTER_MAX_CHARS = 500
+ADAPTER_SHORT_POINTER_MAX_LINES = 5
+ADAPTER_GENERATED_MARKER_PATTERN = re.compile(
+    r"\b(auto[- ]?generated|generated|do not edit|source)\b",
+    re.IGNORECASE,
+)
+ADAPTER_DECORATIVE_LINE_PATTERN = re.compile(r"^(#|<!--|-->|//)")
 ADAPTER_FILES = {
     ".cursorrules",
     "CLAUDE.md",
@@ -33,6 +41,29 @@ def add_check(
 
 def rel(repo: Path, path: Path) -> str:
     return path.relative_to(repo).as_posix()
+
+
+def adapter_shape(adapter_text: str) -> str:
+    stripped = adapter_text.strip()
+    if not ADAPTER_POINTER_PATTERN.search(stripped):
+        return "missing-pointer"
+
+    lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+    header = "\n".join(lines[:ADAPTER_GENERATED_HEADER_LINES])
+    if ADAPTER_GENERATED_MARKER_PATTERN.search(header):
+        return "generated-pointer"
+
+    content_lines = [
+        line for line in lines if not ADAPTER_DECORATIVE_LINE_PATTERN.search(line)
+    ]
+    if (
+        len(lines) <= ADAPTER_SHORT_POINTER_MAX_LINES
+        and len(stripped) <= ADAPTER_SHORT_POINTER_MAX_CHARS
+        and all(ADAPTER_POINTER_PATTERN.search(line) for line in content_lines)
+    ):
+        return "short-pointer"
+
+    return "extra-content"
 
 
 def markdown_files(repo: Path) -> list[Path]:
@@ -121,10 +152,27 @@ def check_agent_files(repo: Path, checks: list[dict[str, str]]) -> None:
             adapter = base / adapter_name
             if adapter.is_symlink():
                 continue
-            adapter_text = adapter.read_text(encoding="utf-8", errors="replace").strip()
-            if ADAPTER_POINTER_PATTERN.search(adapter_text):
+            adapter_text = adapter.read_text(encoding="utf-8", errors="replace")
+            shape = adapter_shape(adapter_text)
+            if shape in {"short-pointer", "generated-pointer"}:
                 continue
+
             nearest_label = rel(repo, nearest_agents) if nearest_agents else "nearest AGENTS.md"
+            if shape == "extra-content":
+                add_check(
+                    checks,
+                    "adapter-extra-content",
+                    "warning",
+                    rel(repo, adapter),
+                    (
+                        f"{adapter_name} points to {nearest_label} but contains "
+                        "additional instruction content; keep adapters as short "
+                        "canonical pointers or declare this adapter canonical in "
+                        "AGENTS.md"
+                    ),
+                )
+                continue
+
             add_check(
                 checks,
                 "adapter-drift",
