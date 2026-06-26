@@ -33,6 +33,16 @@ def adapter_checks(result: dict[str, object]) -> list[dict[str, str]]:
     ]
 
 
+def checks_by_id(result: dict[str, object], check_id: str) -> list[dict[str, str]]:
+    checks = result["checks"]
+    assert isinstance(checks, list)
+    return [
+        check
+        for check in checks
+        if isinstance(check, dict) and check.get("id") == check_id
+    ]
+
+
 class CheckKnowledgeStoreAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -152,3 +162,38 @@ class CheckKnowledgeStoreAdapterTests(unittest.TestCase):
         self.assertEqual([check["id"] for check in checks], ["adapter-extra-content"])
         self.assertEqual(checks[0]["path"], "packages/api/CLAUDE.md")
         self.assertIn("packages/api/AGENTS.md", checks[0]["message"])
+
+
+class CheckKnowledgeStoreStructureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name)
+        self.module = load_module()
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def validate(self) -> dict[str, object]:
+        return self.module.validate(self.repo)
+
+    def test_missing_root_agents_is_error(self) -> None:
+        result = self.validate()
+        checks = checks_by_id(result, "missing-root-agents")
+
+        self.assertEqual(result["summary"]["errors"], 1)
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["severity"], "error")
+        self.assertEqual(checks[0]["path"], "AGENTS.md")
+
+    def test_docs_directory_without_index_is_warning(self) -> None:
+        write(self.repo / "AGENTS.md", "# Test Repo\n")
+        write(self.repo / "docs" / "api.md", "# API\n")
+
+        result = self.validate()
+        checks = checks_by_id(result, "missing-docs-index")
+
+        self.assertEqual(result["summary"]["errors"], 0)
+        self.assertEqual(result["summary"]["warnings"], 1)
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["severity"], "warning")
+        self.assertEqual(checks[0]["path"], "docs")
