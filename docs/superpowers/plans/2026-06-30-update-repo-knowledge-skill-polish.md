@@ -4,7 +4,7 @@
 
 **Goal:** Improve the `update-repo-knowledge` skill metadata, static quality, benchmark scenarios, and evaluation coverage while preserving strict repository-knowledge checker semantics.
 
-**Architecture:** Make changes in the source skill repo at `/Users/kmsh/Researcher/update-repo-knowledge`, validate there, then copy the validated files into the installed skill at `/Users/kmsh/.agents/skills/update-repo-knowledge`. Keep `SKILL.md` concise and put evaluation detail in docs so the skill keeps using progressive disclosure. Use disposable target repositories for behavior validation instead of weakening checker behavior for this skill package.
+**Architecture:** Make changes from the repository root, validate there, then copy the validated files into the installed skill at `$HOME/.agents/skills/update-repo-knowledge`. Keep `SKILL.md` concise and put evaluation detail in docs so the skill keeps using progressive disclosure. Use disposable target repositories for behavior validation instead of weakening checker behavior for this skill package.
 
 **Tech Stack:** Codex skills, `agents/openai.yaml`, Python 3.12 stdlib scripts, `unittest`, `uv run --script`, `ast-grep` CLI via `sg`, Plugin Eval bundled CLI script.
 
@@ -19,21 +19,21 @@ Use these references while implementing and evaluating:
 - Matklad architecture note: `https://matklad.github.io/2021/02/06/ARCHITECTURE.md.html`
 - Intent Layer article: `https://intent-systems.com/blog/intent-layer`
 - AGENTS.md guide: `https://www.morphllm.com/agents-md-guide`
-- Local guide: `/Users/kmsh/.codex/.agent/agents-md-skills-md.md`
-- Installed skill target: `/Users/kmsh/.agents/skills/update-repo-knowledge`
-- Source skill repo: `/Users/kmsh/Researcher/update-repo-knowledge`
+- Local guide: `$HOME/.codex/.agent/agents-md-skills-md.md`
+- Installed skill target: `$HOME/.agents/skills/update-repo-knowledge`
+- Source skill repo: repository root
 
 ## File Structure
 
-- Modify `/Users/kmsh/Researcher/update-repo-knowledge/agents/openai.yaml`: Codex app metadata, default prompt, implicit invocation policy, tool dependencies.
-- Modify `/Users/kmsh/Researcher/update-repo-knowledge/scripts/ast_change_hints.py`: split summary accounting out of `summarize()` to reduce static complexity.
-- Modify `/Users/kmsh/Researcher/update-repo-knowledge/tests/test_ast_change_hints.py`: unit coverage for the new summary accounting helper and `summarize()` integration.
-- Create `/Users/kmsh/Researcher/update-repo-knowledge/.plugin-eval/benchmark.json`: realistic Plugin Eval scenarios for the three required skill outcomes.
-- Create `/Users/kmsh/Researcher/update-repo-knowledge/docs/evaluations/2026-06-30-agents-guidance-alignment.md`: evaluation plan for AGENTS.md guidance, update workflow, and alignment with source links.
-- Modify `/Users/kmsh/.agents/skills/update-repo-knowledge/agents/openai.yaml`: sync after source validation.
-- Modify `/Users/kmsh/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py`: sync after source validation.
-- Modify `/Users/kmsh/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py`: sync after source validation.
-- Modify `/Users/kmsh/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json`: sync or replace after source validation.
+- Modify `agents/openai.yaml`: Codex app metadata, default prompt, implicit invocation policy, tool dependencies.
+- Modify `scripts/ast_change_hints.py`: split summary accounting out of `summarize()` to reduce static complexity.
+- Modify `tests/test_ast_change_hints.py`: unit coverage for the new summary accounting helper and `summarize()` integration.
+- Create `.plugin-eval/benchmark.json`: realistic Plugin Eval scenarios for the three required skill outcomes.
+- Create `docs/evaluations/2026-06-30-agents-guidance-alignment.md`: evaluation plan for AGENTS.md guidance, update workflow, and alignment with source links.
+- Modify `$HOME/.agents/skills/update-repo-knowledge/agents/openai.yaml`: sync after source validation.
+- Modify `$HOME/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py`: sync after source validation.
+- Modify `$HOME/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py`: sync after source validation.
+- Modify `$HOME/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json`: sync or replace after source validation.
 
 ## Strict Semantics To Preserve
 
@@ -47,12 +47,12 @@ Use these references while implementing and evaluating:
 ### Task 1: Improve Codex App Skill Metadata
 
 **Files:**
-- Modify: `/Users/kmsh/Researcher/update-repo-knowledge/agents/openai.yaml`
-- Later sync: `/Users/kmsh/.agents/skills/update-repo-knowledge/agents/openai.yaml`
+- Modify: `agents/openai.yaml`
+- Later sync: `$HOME/.agents/skills/update-repo-knowledge/agents/openai.yaml`
 
 - [ ] **Step 1: Replace source metadata with explicit optional metadata**
 
-Replace the entire file `/Users/kmsh/Researcher/update-repo-knowledge/agents/openai.yaml` with:
+Replace the entire file `agents/openai.yaml` with:
 
 ```yaml
 interface:
@@ -81,7 +81,7 @@ dependencies:
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 uv run --with pyyaml python - <<'PY'
 from pathlib import Path
 import yaml
@@ -106,7 +106,7 @@ openai.yaml metadata ok
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 git add agents/openai.yaml
 git commit -m "docs(skill): clarify update repo knowledge metadata"
 ```
@@ -116,14 +116,14 @@ Expected: commit succeeds without hook bypass flags.
 ### Task 2: Split Summary Accounting Out Of `ast_change_hints.py`
 
 **Files:**
-- Modify: `/Users/kmsh/Researcher/update-repo-knowledge/scripts/ast_change_hints.py`
-- Modify: `/Users/kmsh/Researcher/update-repo-knowledge/tests/test_ast_change_hints.py`
-- Later sync: `/Users/kmsh/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py`
-- Later sync: `/Users/kmsh/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py`
+- Modify: `scripts/ast_change_hints.py`
+- Modify: `tests/test_ast_change_hints.py`
+- Later sync: `$HOME/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py`
+- Later sync: `$HOME/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py`
 
 - [ ] **Step 1: Add failing tests for summary accounting**
 
-Append this test class to `/Users/kmsh/Researcher/update-repo-knowledge/tests/test_ast_change_hints.py` after `DiffParsingTests`:
+Append this test class to `tests/test_ast_change_hints.py` after `DiffParsingTests`:
 
 ```python
 class SummaryAccountingTests(unittest.TestCase):
@@ -205,7 +205,7 @@ class SummaryAccountingTests(unittest.TestCase):
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python -m unittest tests.test_ast_change_hints.SummaryAccountingTests -v
 ```
 
@@ -217,7 +217,7 @@ AttributeError: module 'ast_change_hints' has no attribute 'empty_summary'
 
 - [ ] **Step 3: Add helper functions and simplify `summarize()`**
 
-In `/Users/kmsh/Researcher/update-repo-knowledge/scripts/ast_change_hints.py`, add these functions after `analyze_change()` and replace the existing `summarize()` with the version below:
+In `scripts/ast_change_hints.py`, add these functions after `analyze_change()` and replace the existing `summarize()` with the version below:
 
 ```python
 def empty_summary() -> dict[str, int]:
@@ -283,7 +283,7 @@ def summarize(
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python -m unittest tests.test_ast_change_hints.SummaryAccountingTests -v
 ```
 
@@ -300,7 +300,7 @@ OK
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python -m unittest discover -s tests -v
 ```
 
@@ -311,8 +311,8 @@ Expected: all tests pass. Tests that depend on missing local `sg` may be skipped
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
-node /Users/kmsh/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze /Users/kmsh/Researcher/update-repo-knowledge --format markdown
+cd <repo-root>
+node $HOME/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze . --format markdown
 ```
 
 Expected: score remains grade `A`; the `py-complexity-high` warning is absent. If the warning remains but reports a lower max complexity, inspect the reported function and repeat the same helper-extraction pattern before continuing.
@@ -322,7 +322,7 @@ Expected: score remains grade `A`; the `py-complexity-high` warning is absent. I
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 git add scripts/ast_change_hints.py tests/test_ast_change_hints.py
 git commit -m "refactor(skill): split ast hint summary accounting"
 ```
@@ -332,19 +332,19 @@ Expected: commit succeeds without hook bypass flags.
 ### Task 3: Add Realistic Plugin Eval Benchmark Scenarios
 
 **Files:**
-- Create: `/Users/kmsh/Researcher/update-repo-knowledge/.plugin-eval/benchmark.json`
-- Later sync: `/Users/kmsh/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json`
+- Create: `.plugin-eval/benchmark.json`
+- Later sync: `$HOME/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json`
 
 - [ ] **Step 1: Create benchmark directory and benchmark config**
 
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 mkdir -p .plugin-eval
 ```
 
-Create `/Users/kmsh/Researcher/update-repo-knowledge/.plugin-eval/benchmark.json` with:
+Create `.plugin-eval/benchmark.json` with:
 
 ```json
 {
@@ -436,7 +436,7 @@ Create `/Users/kmsh/Researcher/update-repo-knowledge/.plugin-eval/benchmark.json
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python -m json.tool .plugin-eval/benchmark.json >/tmp/update-repo-knowledge-benchmark.json
 ```
 
@@ -447,8 +447,8 @@ Expected: command exits `0` and writes formatted JSON to `/tmp/update-repo-knowl
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
-node /Users/kmsh/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js start /Users/kmsh/Researcher/update-repo-knowledge --request "Help me benchmark this skill." --format markdown
+cd <repo-root>
+node $HOME/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js start . --request "Help me benchmark this skill." --format markdown
 ```
 
 Expected: output routes to the benchmark workflow and references `.plugin-eval/benchmark.json`.
@@ -458,7 +458,7 @@ Expected: output routes to the benchmark workflow and references `.plugin-eval/b
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 git add .plugin-eval/benchmark.json
 git commit -m "test(skill): add repo knowledge benchmark scenarios"
 ```
@@ -468,20 +468,20 @@ Expected: commit succeeds without hook bypass flags.
 ### Task 4: Add AGENTS.md Guidance Alignment Evaluation Plan
 
 **Files:**
-- Create: `/Users/kmsh/Researcher/update-repo-knowledge/docs/evaluations/2026-06-30-agents-guidance-alignment.md`
+- Create: `docs/evaluations/2026-06-30-agents-guidance-alignment.md`
 
 - [ ] **Step 1: Create evaluation docs directory**
 
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 mkdir -p docs/evaluations
 ```
 
 - [ ] **Step 2: Write alignment evaluation plan**
 
-Create `/Users/kmsh/Researcher/update-repo-knowledge/docs/evaluations/2026-06-30-agents-guidance-alignment.md` with:
+Create `docs/evaluations/2026-06-30-agents-guidance-alignment.md` with:
 
 ```markdown
 # AGENTS.md Guidance Alignment Evaluation
@@ -585,7 +585,7 @@ Required behavior:
 ```bash
 python -m unittest discover -s tests -v
 uv run --script scripts/repo_level_tdd_fixture.py --refresh
-node /Users/kmsh/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze /Users/kmsh/Researcher/update-repo-knowledge --format markdown
+node $HOME/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze . --format markdown
 python -m json.tool .plugin-eval/benchmark.json >/tmp/update-repo-knowledge-benchmark.json
 ```
 
@@ -599,7 +599,7 @@ The skill is aligned when all unit tests pass, the repo-level disposable fixture
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python - <<'PY'
 from pathlib import Path
 
@@ -631,7 +631,7 @@ placeholder scan passed
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 git add docs/evaluations/2026-06-30-agents-guidance-alignment.md
 git commit -m "docs(skill): add agents guidance alignment evaluation"
 ```
@@ -642,14 +642,14 @@ Expected: commit succeeds without hook bypass flags.
 
 **Files:**
 - Source files from Tasks 1-4
-- Sync target: `/Users/kmsh/.agents/skills/update-repo-knowledge`
+- Sync target: `$HOME/.agents/skills/update-repo-knowledge`
 
 - [ ] **Step 1: Run full source validation**
 
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 python -m unittest discover -s tests -v
 python -m py_compile scripts/*.py
 uv run --with pyyaml python - <<'PY'
@@ -677,7 +677,7 @@ and all unit tests and compile checks pass.
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 uv run --script scripts/repo_level_tdd_fixture.py --refresh
 ```
 
@@ -688,8 +688,8 @@ Expected: the fixture runs against `/tmp/update-repo-knowledge-tdd/agentskills`.
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
-node /Users/kmsh/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze /Users/kmsh/Researcher/update-repo-knowledge --format markdown
+cd <repo-root>
+node $HOME/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze . --format markdown
 ```
 
 Expected: grade `A`; no new frontmatter, link, metadata, or budget failures.
@@ -699,12 +699,12 @@ Expected: grade `A`; no new frontmatter, link, metadata, or budget failures.
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
-mkdir -p /Users/kmsh/.agents/skills/update-repo-knowledge/.plugin-eval
-cp agents/openai.yaml /Users/kmsh/.agents/skills/update-repo-knowledge/agents/openai.yaml
-cp scripts/ast_change_hints.py /Users/kmsh/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py
-cp tests/test_ast_change_hints.py /Users/kmsh/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py
-cp .plugin-eval/benchmark.json /Users/kmsh/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json
+cd <repo-root>
+mkdir -p $HOME/.agents/skills/update-repo-knowledge/.plugin-eval
+cp agents/openai.yaml $HOME/.agents/skills/update-repo-knowledge/agents/openai.yaml
+cp scripts/ast_change_hints.py $HOME/.agents/skills/update-repo-knowledge/scripts/ast_change_hints.py
+cp tests/test_ast_change_hints.py $HOME/.agents/skills/update-repo-knowledge/tests/test_ast_change_hints.py
+cp .plugin-eval/benchmark.json $HOME/.agents/skills/update-repo-knowledge/.plugin-eval/benchmark.json
 ```
 
 Expected: commands exit `0`.
@@ -714,7 +714,7 @@ Expected: commands exit `0`.
 Run:
 
 ```bash
-cd /Users/kmsh/.agents/skills/update-repo-knowledge
+cd $HOME/.agents/skills/update-repo-knowledge
 python -m unittest tests.test_ast_change_hints.SummaryAccountingTests -v
 python -m json.tool .plugin-eval/benchmark.json >/tmp/installed-update-repo-knowledge-benchmark.json
 uv run --with pyyaml python - <<'PY'
@@ -739,7 +739,7 @@ installed skill validation passed
 Run:
 
 ```bash
-cd /Users/kmsh/Researcher/update-repo-knowledge
+cd <repo-root>
 git status --short
 git add .
 git commit -m "chore(skill): validate repo knowledge skill polish"

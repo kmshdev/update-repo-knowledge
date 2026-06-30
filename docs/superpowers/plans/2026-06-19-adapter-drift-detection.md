@@ -216,8 +216,8 @@ containing `AGENTS.md` and emits no `adapter-extra-content` warning.
 
 - [ ] **Step 3: Add deterministic adapter-shape helpers**
 
-In `scripts/check_knowledge_store.py`,
-add these constants after `ADAPTER_POINTER_PATTERN`:
+In `scripts/check_knowledge_adapter_shape.py`, define the adapter-shape
+constants with the pointer pattern:
 
 ```python
 ADAPTER_GENERATED_HEADER_LINES = 10
@@ -229,9 +229,18 @@ ADAPTER_GENERATED_MARKER_PATTERN = re.compile(
 )
 ```
 
-Add this function after `rel()`:
+Add `is_short_pointer()` and `adapter_shape()` after the constants:
 
 ```python
+def is_short_pointer(stripped: str, lines: list[str]) -> bool:
+    return (
+        len(lines) <= ADAPTER_SHORT_POINTER_MAX_LINES
+        and len(stripped) <= ADAPTER_SHORT_POINTER_MAX_CHARS
+        and bool(lines)
+        and all(ADAPTER_POINTER_PATTERN.search(line) for line in lines)
+    )
+
+
 def adapter_shape(adapter_text: str) -> str:
     stripped = adapter_text.strip()
     if not ADAPTER_POINTER_PATTERN.search(stripped):

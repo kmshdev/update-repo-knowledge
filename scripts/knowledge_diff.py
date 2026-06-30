@@ -13,8 +13,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from knowledge_diff_classify import classify, nearest_agent, path_under_scope  # noqa: E402
-from knowledge_diff_git import changed_files, load_baseline, normalize_status, run_git  # noqa: E402
+from knowledge_diff_git import load_baseline  # noqa: E402
 from knowledge_diff_summary import summarize  # noqa: E402
 
 

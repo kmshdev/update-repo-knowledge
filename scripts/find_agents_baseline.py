@@ -13,8 +13,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from find_agents_collect import collect_baselines, scope_for, walk_agent_files  # noqa: E402
-from find_agents_git import is_git_repo, last_commit, run_git, tracked_files  # noqa: E402
+from find_agents_collect import collect_baselines  # noqa: E402
+from find_agents_git import is_git_repo  # noqa: E402
 
 
 def print_text(result: dict[str, object]) -> None:

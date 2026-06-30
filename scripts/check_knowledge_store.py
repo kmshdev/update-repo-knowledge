@@ -13,7 +13,6 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from check_knowledge_adapter_shape import adapter_shape  # noqa: E402
 from check_knowledge_adapters import check_agent_files  # noqa: E402
 from check_knowledge_docs import check_docs_indexes  # noqa: E402
 from check_knowledge_links import check_markdown_links  # noqa: E402
