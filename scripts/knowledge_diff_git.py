@@ -24,7 +24,11 @@ def run_git(repo: Path, args: list[str], check: bool = True) -> subprocess.Compl
 def load_baseline(path: Path) -> dict[str, object]:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
-    if not isinstance(data, dict) or "agent_files" not in data:
+    if (
+        not isinstance(data, dict)
+        or "agent_files" not in data
+        or not isinstance(data["agent_files"], list)
+    ):
         raise ValueError("baseline JSON must contain an agent_files array")
     return data
 
@@ -49,6 +53,10 @@ def changed_files(repo: Path, baseline: str, scope: str) -> list[tuple[str, str]
         repo,
         ["diff", "--cached", "--name-status", "--", scope_arg],
     ).stdout.splitlines()
+    untracked = run_git(
+        repo,
+        ["ls-files", "--others", "--exclude-standard", "--", scope_arg],
+    ).stdout.splitlines()
 
     seen: dict[str, str] = {}
     for line in [*committed, *working, *staged]:
@@ -57,4 +65,6 @@ def changed_files(repo: Path, baseline: str, scope: str) -> list[tuple[str, str]
             continue
         status, path = parsed
         seen[path] = status
+    for path in untracked:
+        seen.setdefault(path, "??")
     return sorted((status, path) for path, status in seen.items())

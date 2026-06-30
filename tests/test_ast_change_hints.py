@@ -12,10 +12,19 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = SKILL_DIR / "scripts" / "ast_change_hints.py"
+CONFIG_PATH = SKILL_DIR / "scripts" / "ast_change_config.py"
 
 
 def load_module():
     spec = importlib.util.spec_from_file_location("ast_change_hints", SCRIPT_PATH)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_config_module():
+    spec = importlib.util.spec_from_file_location("ast_change_config", CONFIG_PATH)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -115,6 +124,12 @@ class LanguageMappingTests(unittest.TestCase):
         for filename, expected in examples.items():
             with self.subTest(filename=filename):
                 self.assertEqual(module.language_for_path(filename), expected)
+
+    def test_haskell_profile_uses_tree_sitter_type_alias(self) -> None:
+        config = load_config_module()
+
+        self.assertIn("type_alias", config.KIND_PROFILES["haskell"])
+        self.assertNotIn("type_synomym", config.KIND_PROFILES["haskell"])
 
 
 class DiffParsingTests(unittest.TestCase):

@@ -30,11 +30,11 @@ canonical file.
 
 ## Non-Goals
 
-- Do not add semantic adapter equivalence checking.
-- Do not add LLM review, embeddings, AST analysis, or runtime behavior checks.
-- Do not change `knowledge_diff.py` JSON schema or path/status routing.
-- Do not broaden tests into a documentation-generation fixture harness.
-- Do not add Python package dependencies.
+- Avoid semantic adapter equivalence checking.
+- Skip LLM review, embeddings, AST analysis, or runtime behavior checks.
+- Keep `knowledge_diff.py` JSON schema and path/status routing unchanged.
+- Keep tests out of a documentation-generation fixture harness.
+- Avoid new Python package dependencies.
 
 ## Proposed Change
 

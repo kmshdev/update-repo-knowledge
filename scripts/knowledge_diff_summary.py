@@ -48,6 +48,8 @@ def collect_changes(repo: Path, agents: list[dict[str, object]]) -> dict[str, di
         scope = str(entry["scope"])
         for status, path in changed_files(repo, baseline, scope):
             owner = nearest_agent(path, agents) or entry
+            if owner is not entry:
+                continue
             all_changes[path] = change_entry(path, status, owner)
     return all_changes
 

@@ -86,7 +86,7 @@ KIND_PROFILES = {
     "css": ["rule_set", "at_rule"],
     "elixir": ["call"],
     "go": ["function_declaration", "method_declaration", "type_declaration"],
-    "haskell": ["function", "type_synomym", "data_type"],
+    "haskell": ["function", "type_alias", "data_type"],
     "html": ["element", "script_element", "style_element"],
     "java": ["class_declaration", "method_declaration", "interface_declaration"],
     "javascript": ["function_declaration", "class_declaration", "method_definition"],
