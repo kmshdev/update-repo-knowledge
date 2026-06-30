@@ -147,6 +147,102 @@ class DiffParsingTests(unittest.TestCase):
         )
 
 
+class SummaryAccountingTests(unittest.TestCase):
+    def test_record_analysis_state_counts_each_state(self) -> None:
+        module = load_module()
+        summary = module.empty_summary()
+
+        module.record_analysis_state(summary, "eligible")
+        module.record_analysis_state(summary, "analyzed")
+        module.record_analysis_state(summary, "unsupported")
+        module.record_analysis_state(summary, "skipped")
+        module.record_analysis_state(summary, "ignored-state")
+
+        self.assertEqual(
+            summary,
+            {
+                "eligible_files": 2,
+                "analyzed_files": 1,
+                "unsupported_files": 1,
+                "skipped_files": 2,
+            },
+        )
+
+    def test_summarize_uses_summary_accounting_helper(self) -> None:
+        module = load_module()
+        original_analyze_change = module.analyze_change
+
+        states = iter(["eligible", "analyzed", "unsupported", "skipped"])
+
+        def fake_analyze_change(repo, change, agents, sg_info):
+            state = next(states)
+            entry = module.base_change(change)
+            entry["ast_status"] = state
+            return entry, state
+
+        module.analyze_change = fake_analyze_change
+        try:
+            result = module.summarize(
+                Path("/tmp/example-repo"),
+                {
+                    "agent_files": [
+                        {
+                            "path": "AGENTS.md",
+                            "scope": ".",
+                            "last_commit": "abc123",
+                            "exists": True,
+                            "tracked": True,
+                        }
+                    ]
+                },
+                {
+                    "changes": [
+                        {
+                            "path": "one.py",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "two.py",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "three.txt",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "four.lock",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "no-doc-impact",
+                        },
+                    ]
+                },
+                sg_path="/not/a/real/sg",
+            )
+        finally:
+            module.analyze_change = original_analyze_change
+
+        self.assertEqual(
+            result["summary"],
+            {
+                "eligible_files": 2,
+                "analyzed_files": 1,
+                "unsupported_files": 1,
+                "skipped_files": 1,
+            },
+        )
+        self.assertEqual(
+            [change["path"] for change in result["changes"]],
+            ["one.py", "two.py", "three.txt", "four.lock"],
+        )
+
+
 class MissingAstGrepTests(TempGitRepo):
     def test_missing_sg_returns_advisory_entries_without_failure(self) -> None:
         module = load_module()
