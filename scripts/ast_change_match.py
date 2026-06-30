@@ -40,31 +40,53 @@ def preview_text(match: dict[str, object]) -> str:
     return ""
 
 
+def malformed_stream_error(
+    command: list[str],
+    file_path: Path,
+    line_number: int,
+    line: str,
+    error: json.JSONDecodeError,
+) -> str:
+    snippet = line.strip()
+    if len(snippet) > 120:
+        snippet = f"{snippet[:117]}..."
+    return (
+        "Malformed ast-grep JSON stream output from "
+        f"{' '.join(command)} for {file_path} at line {line_number}: "
+        f"{error.msg}. Offending line: {snippet!r}. "
+        "Rerun ast-grep with --json=stream or inspect ast-grep output."
+    )
+
+
 def ast_grep_matches(
     sg_path: str,
     file_path: Path,
     language: str,
     kind: str,
 ) -> tuple[list[dict], str]:
+    command = [
+        sg_path,
+        "run",
+        "-k",
+        kind,
+        "-l",
+        language,
+        "--json=stream",
+        str(file_path),
+    ]
     result = run_command(
-        [
-            sg_path,
-            "run",
-            "-k",
-            kind,
-            "-l",
-            language,
-            "--json=stream",
-            str(file_path),
-        ],
+        command,
         check=False,
     )
     if result.returncode != 0:
         return [], result.stderr.strip() or result.stdout.strip()
 
     matches = []
-    for line in result.stdout.splitlines():
+    for line_number, line in enumerate(result.stdout.splitlines(), start=1):
         if not line.strip():
             continue
-        matches.append(json.loads(line))
+        try:
+            matches.append(json.loads(line))
+        except json.JSONDecodeError as error:
+            return [], malformed_stream_error(command, file_path, line_number, line, error)
     return matches, ""

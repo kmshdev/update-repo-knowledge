@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from check_knowledge_common import add_check, rel
+from check_knowledge_traversal import knowledge_files
 
 
 LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 
 
 def markdown_files(repo: Path) -> list[Path]:
-    results: list[Path] = []
-    for root, dirs, files in os.walk(repo):
-        dirs[:] = [name for name in dirs if name != ".git"]
-        for name in files:
-            if name.endswith(".md"):
-                results.append(Path(root, name))
-    return sorted(results)
+    return sorted(path for path in knowledge_files(repo) if path.name.endswith(".md"))
 
 
 def is_external_link(target: str) -> bool:
@@ -36,7 +30,7 @@ def local_link_target(repo: Path, path: Path, raw_target: str) -> Path | None:
         return None
     target_path = (path.parent / unquote(clean_target)).resolve()
     try:
-        target_path.relative_to(repo)
+        target_path.relative_to(repo.resolve())
     except ValueError:
         return None
     return target_path

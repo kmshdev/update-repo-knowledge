@@ -65,20 +65,12 @@ def mark_disposable_clone(repo: Path) -> None:
     )
 
 
-def is_default_fixture_clone(repo: Path) -> bool:
-    """Return whether repo is the historical default disposable fixture path."""
-    try:
-        return repo.resolve() == (DEFAULT_WORK_ROOT / "agentskills").resolve()
-    except OSError:
-        return False
-
-
 def remove_disposable_clone(repo: Path) -> None:
     """Remove an existing checkout only when it is clearly disposable."""
     git_dir = repo / ".git"
     remote = run(["git", "config", "--get", "remote.origin.url"], repo)
     remote_url = remote.stdout.strip()
-    has_disposable_signal = (repo / DISPOSABLE_SENTINEL).is_file() or is_default_fixture_clone(repo)
+    has_disposable_signal = (repo / DISPOSABLE_SENTINEL).is_file()
     if (
         repo.is_symlink()
         or not repo.is_dir()
@@ -89,7 +81,8 @@ def remove_disposable_clone(repo: Path) -> None:
     ):
         raise RuntimeError(
             "Refusing to refresh non-disposable agentskills path: "
-            f"{repo}. Delete it manually or choose a different --work-root."
+            f"{repo}. Delete and recreate the fixture, or add "
+            f"{DISPOSABLE_SENTINEL} only after confirming this checkout is disposable."
         )
     shutil.rmtree(repo)
 

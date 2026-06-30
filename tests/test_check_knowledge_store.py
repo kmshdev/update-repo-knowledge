@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,6 +22,17 @@ def load_module():
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=str(cwd),
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
 
 def adapter_checks(result: dict[str, object]) -> list[dict[str, str]]:
@@ -277,3 +289,91 @@ class CheckKnowledgeStoreStructureTests(unittest.TestCase):
         self.assertEqual(len(checks), 1)
         self.assertEqual(checks[0]["severity"], "warning")
         self.assertEqual(checks[0]["path"], "docs")
+
+
+class CheckKnowledgeStoreTraversalTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name)
+        self.module = load_module()
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def validate(self) -> dict[str, object]:
+        return self.module.validate(self.repo)
+
+    def test_git_traversal_skips_ignored_generated_trees(self) -> None:
+        run(["git", "init"], self.repo)
+        run(["git", "config", "user.email", "test@example.com"], self.repo)
+        run(["git", "config", "user.name", "Test User"], self.repo)
+        write(
+            self.repo / ".gitignore",
+            "\n".join(["node_modules/", ".venv/", "dist/", ""]),
+        )
+        write(self.repo / "AGENTS.md", "# Test Repo\n")
+        write(self.repo / "docs" / "api.md", "[broken](missing.md)\n")
+        write(
+            self.repo / "CLAUDE.md",
+            "\n".join(
+                [
+                    "Canonical repository instructions live in AGENTS.md.",
+                    "Keep this adapter-only deployment instruction.",
+                    "",
+                ]
+            ),
+        )
+        write(self.repo / "node_modules" / "pkg" / "docs" / "bad.md", "[bad](missing.md)\n")
+        write(self.repo / ".venv" / "docs" / "bad.md", "[bad](missing.md)\n")
+        write(
+            self.repo / "dist" / "CLAUDE.md",
+            "Generated package instruction that should not be scanned.\n",
+        )
+        run(["git", "add", ".gitignore", "AGENTS.md", "docs/api.md", "CLAUDE.md"], self.repo)
+
+        result = self.validate()
+        checks = result["checks"]
+        assert isinstance(checks, list)
+        paths = [check["path"] for check in checks if isinstance(check, dict)]
+        check_ids = [check["id"] for check in checks if isinstance(check, dict)]
+
+        self.assertIn("missing-docs-index", check_ids)
+        self.assertIn("broken-markdown-link", check_ids)
+        self.assertIn("adapter-extra-content", check_ids)
+        self.assertIn("docs", paths)
+        self.assertIn("docs/api.md", paths)
+        self.assertIn("CLAUDE.md", paths)
+        self.assertNotIn("node_modules/pkg/docs", paths)
+        self.assertNotIn(".venv/docs", paths)
+        self.assertNotIn("dist/CLAUDE.md", paths)
+
+    def test_fallback_traversal_skips_generated_trees_but_checks_repo_docs(self) -> None:
+        write(self.repo / "AGENTS.md", "# Test Repo\n")
+        write(self.repo / "docs" / "api.md", "[broken](missing.md)\n")
+        write(
+            self.repo / "CLAUDE.md",
+            "\n".join(
+                [
+                    "Canonical repository instructions live in AGENTS.md.",
+                    "Keep this adapter-only deployment instruction.",
+                    "",
+                ]
+            ),
+        )
+        write(self.repo / "node_modules" / "pkg" / "docs" / "bad.md", "[bad](missing.md)\n")
+        write(self.repo / "generated" / "docs" / "bad.md", "[bad](missing.md)\n")
+
+        result = self.validate()
+        checks = result["checks"]
+        assert isinstance(checks, list)
+        paths = [check["path"] for check in checks if isinstance(check, dict)]
+        check_ids = [check["id"] for check in checks if isinstance(check, dict)]
+
+        self.assertIn("missing-docs-index", check_ids)
+        self.assertIn("broken-markdown-link", check_ids)
+        self.assertIn("adapter-extra-content", check_ids)
+        self.assertIn("docs", paths)
+        self.assertIn("docs/api.md", paths)
+        self.assertIn("CLAUDE.md", paths)
+        self.assertNotIn("node_modules/pkg/docs", paths)
+        self.assertNotIn("generated/docs", paths)

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from check_knowledge_adapter_emit import add_adapter_check
 from check_knowledge_adapter_shape import ADAPTER_FILES, adapter_shape
 from check_knowledge_common import add_check
+from check_knowledge_traversal import knowledge_files
 
 
 def nearest_agent_file(path: Path, agent_dirs: list[Path]) -> Path | None:
@@ -64,10 +64,12 @@ def check_agent_files(repo: Path, checks: list[dict[str, str]]) -> None:
             "Root AGENTS.md is missing; initial knowledge-store setup is required",
         )
 
+    files_by_dir: dict[Path, list[str]] = {}
+    for path in knowledge_files(repo):
+        files_by_dir.setdefault(path.parent, []).append(path.name)
+
     agent_dirs: list[Path] = []
-    for root, dirs, files in os.walk(repo):
-        dirs[:] = [name for name in dirs if name != ".git"]
-        base = Path(root)
+    for base, files in sorted(files_by_dir.items()):
         if "AGENTS.md" in files:
             agent_dirs.append(base)
         check_adapter_files(repo, checks, base, files, agent_dirs)

@@ -13,36 +13,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from ast_change_analysis import analyze_change, base_change, skip_entry  # noqa: E402
-from ast_change_hint_building import build_hints  # noqa: E402
-from ast_change_io import changed_ranges_from_diff, load_json  # noqa: E402
-from ast_change_match import ast_grep_matches, find_sg, node_range, preview_text  # noqa: E402
-from ast_change_paths import language_for_path, ranges_intersect  # noqa: E402
-from ast_change_summary import (  # noqa: E402
-    baseline_agents,
-    empty_summary,
-    iter_change_objects,
-    record_analysis_state,
-)
-
-
-def summarize(
-    repo: Path,
-    baseline_data: dict[str, object],
-    diff_data: dict[str, object],
-    sg_path: str | None = None,
-) -> dict[str, object]:
-    agents = baseline_agents(baseline_data)
-    sg_info = find_sg(sg_path)
-    changes = []
-    summary = empty_summary()
-
-    for change in iter_change_objects(diff_data):
-        entry, state = analyze_change(repo, change, agents, sg_info)
-        changes.append(entry)
-        record_analysis_state(summary, state)
-
-    return {"repo": str(repo), "sg": sg_info, "summary": summary, "changes": changes}
+from ast_change_io import load_json  # noqa: E402
+from ast_change_summary import summarize  # noqa: E402
 
 
 def print_text(result: dict[str, object]) -> None:

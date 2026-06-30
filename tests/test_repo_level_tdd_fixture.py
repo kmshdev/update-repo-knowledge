@@ -134,6 +134,36 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
             self.assertIn("Refusing to refresh", str(context.exception))
             self.assertTrue(marker.exists())
 
+    def test_refresh_refuses_default_fixture_without_disposable_sentinel(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            original_default = module.DEFAULT_WORK_ROOT
+            work_root = Path(tmp) / "update-repo-knowledge-tdd"
+            repo = work_root / "agentskills"
+            subprocess.run(["git", "init", str(repo)], check=True, stdout=subprocess.PIPE)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "remote",
+                    "add",
+                    "origin",
+                    module.AGENTSKILLS_REPO_URL,
+                ],
+                check=True,
+            )
+            module.DEFAULT_WORK_ROOT = work_root
+            try:
+                with self.assertRaises(RuntimeError) as context:
+                    module.remove_disposable_clone(repo)
+            finally:
+                module.DEFAULT_WORK_ROOT = original_default
+
+            self.assertIn("Delete and recreate the fixture", str(context.exception))
+            self.assertTrue(repo.exists())
+
     def test_refresh_removes_official_checkout_with_disposable_sentinel(self) -> None:
         module = load_module()
 
