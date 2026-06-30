@@ -106,7 +106,7 @@ Required behavior:
 ```bash
 python3 -m unittest discover -s tests -v
 uv run --script scripts/repo_level_tdd_fixture.py --refresh
-node /Users/kmsh/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze /Users/kmsh/Researcher/update-repo-knowledge --format markdown
+node $HOME/.codex/plugins/cache/openai-curated-remote/plugin-eval/0.1.2/scripts/plugin-eval.js analyze . --format markdown
 python3 -m json.tool .plugin-eval/benchmark.json >/tmp/update-repo-knowledge-benchmark.json
 ```
 
