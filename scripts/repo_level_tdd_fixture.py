@@ -58,7 +58,15 @@ def prepare_clone(work_root: Path, refresh: bool) -> Path:
 def remove_disposable_clone(repo: Path) -> None:
     """Remove an existing checkout only when it is clearly disposable."""
     git_dir = repo / ".git"
-    if repo.is_symlink() or not repo.is_dir() or not git_dir.is_dir():
+    remote = run(["git", "config", "--get", "remote.origin.url"], repo)
+    remote_url = remote.stdout.strip()
+    if (
+        repo.is_symlink()
+        or not repo.is_dir()
+        or not git_dir.is_dir()
+        or remote.returncode != 0
+        or remote_url != AGENTSKILLS_REPO_URL
+    ):
         raise RuntimeError(
             "Refusing to refresh non-disposable agentskills path: "
             f"{repo}. Delete it manually or choose a different --work-root."
@@ -92,6 +100,17 @@ def run_skill_script(script: Path, args: list[str]) -> dict[str, object]:
     }
 
 
+def require_baseline_payload(baseline: dict[str, object]) -> dict[str, object]:
+    """Return valid baseline stdout or raise an actionable fixture error."""
+    payload = baseline.get("stdout")
+    if not isinstance(payload, dict) or not isinstance(payload.get("agent_files"), list):
+        raise RuntimeError(
+            "find_agents_baseline.py returned malformed JSON: "
+            "stdout must contain an agent_files array"
+        )
+    return payload
+
+
 def summarize(skill_dir: Path, target_repo: Path) -> dict[str, object]:
     """Run baseline, diff, and health diagnostics against target_repo."""
     baseline_script = skill_dir / "scripts" / "find_agents_baseline.py"
@@ -107,7 +126,7 @@ def summarize(skill_dir: Path, target_repo: Path) -> dict[str, object]:
             "health": None,
         }
 
-    baseline_json = json.dumps(baseline["stdout"])
+    baseline_json = json.dumps(require_baseline_payload(baseline))
     baseline_path = target_repo.parent / "baseline.json"
     baseline_path.write_text(baseline_json, encoding="utf-8")
 

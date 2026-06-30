@@ -80,6 +80,33 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
             self.assertIn("Refusing to refresh", str(context.exception))
             self.assertTrue(git_file.exists())
 
+    def test_refresh_refuses_to_delete_non_official_git_checkout(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "agentskills"
+            subprocess.run(["git", "init", str(repo)], check=True, stdout=subprocess.PIPE)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "remote",
+                    "add",
+                    "origin",
+                    "https://example.com/other.git",
+                ],
+                check=True,
+            )
+            marker = repo / "important.txt"
+            marker.write_text("keep\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError) as context:
+                module.remove_disposable_clone(repo)
+
+            self.assertIn("Refusing to refresh", str(context.exception))
+            self.assertTrue(marker.exists())
+
     def test_run_skill_script_preserves_non_json_stdout(self) -> None:
         module = load_module()
 
@@ -131,3 +158,30 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
         self.assertEqual(calls, ["find_agents_baseline.py"])
         self.assertEqual(result["diff"], None)
         self.assertEqual(result["health"], None)
+
+    def test_summarize_rejects_malformed_successful_baseline(self) -> None:
+        module = load_module()
+        calls: list[str] = []
+
+        def fake_run_skill_script(script: Path, args: list[str]) -> dict[str, object]:
+            calls.append(script.name)
+            return {
+                "command": [script.name, *args],
+                "returncode": 0,
+                "stdout": {"agent_files": {"path": "AGENTS.md"}},
+                "stderr": "",
+            }
+
+        original_run_skill_script = module.run_skill_script
+        module.run_skill_script = fake_run_skill_script
+        try:
+            with self.assertRaises(RuntimeError) as context:
+                module.summarize(
+                    Path("/tmp/update-repo-knowledge"),
+                    Path("/tmp/target-repo"),
+                )
+        finally:
+            module.run_skill_script = original_run_skill_script
+
+        self.assertEqual(calls, ["find_agents_baseline.py"])
+        self.assertIn("agent_files array", str(context.exception))
