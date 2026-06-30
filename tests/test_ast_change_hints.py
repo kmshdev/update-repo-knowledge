@@ -11,7 +11,14 @@ from pathlib import Path
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = SKILL_DIR / "scripts"
 SCRIPT_PATH = SKILL_DIR / "scripts" / "ast_change_hints.py"
+ANALYSIS_PATH = SKILL_DIR / "scripts" / "ast_change_analysis.py"
+CONFIG_PATH = SKILL_DIR / "scripts" / "ast_change_config.py"
+IO_PATH = SKILL_DIR / "scripts" / "ast_change_io.py"
+MATCH_PATH = SKILL_DIR / "scripts" / "ast_change_match.py"
+PATHS_PATH = SKILL_DIR / "scripts" / "ast_change_paths.py"
+SUMMARY_PATH = SKILL_DIR / "scripts" / "ast_change_summary.py"
 
 
 def load_module():
@@ -20,6 +27,40 @@ def load_module():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def load_script_module(name: str, path: Path):
+    if str(SCRIPTS_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_analysis_module():
+    return load_script_module("ast_change_analysis", ANALYSIS_PATH)
+
+
+def load_config_module():
+    return load_script_module("ast_change_config", CONFIG_PATH)
+
+
+def load_io_module():
+    return load_script_module("ast_change_io", IO_PATH)
+
+
+def load_match_module():
+    return load_script_module("ast_change_match", MATCH_PATH)
+
+
+def load_paths_module():
+    return load_script_module("ast_change_paths", PATHS_PATH)
+
+
+def load_summary_module():
+    return load_script_module("ast_change_summary", SUMMARY_PATH)
 
 
 def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -85,7 +126,7 @@ class TempGitRepo(unittest.TestCase):
 
 class LanguageMappingTests(unittest.TestCase):
     def test_maps_broad_ast_grep_languages(self) -> None:
-        module = load_module()
+        module = load_paths_module()
         examples = {
             "tool.sh": "bash",
             "module.c": "c",
@@ -116,10 +157,16 @@ class LanguageMappingTests(unittest.TestCase):
             with self.subTest(filename=filename):
                 self.assertEqual(module.language_for_path(filename), expected)
 
+    def test_haskell_profile_uses_tree_sitter_type_alias(self) -> None:
+        config = load_config_module()
+
+        self.assertIn("type_alias", config.KIND_PROFILES["haskell"])
+        self.assertNotIn("type_synomym", config.KIND_PROFILES["haskell"])
+
 
 class DiffParsingTests(unittest.TestCase):
     def test_parses_add_modify_delete_and_multi_hunk_ranges(self) -> None:
-        module = load_module()
+        module = load_io_module()
         diff_text = "\n".join(
             [
                 "@@ -1,2 +1,3 @@",
@@ -147,9 +194,141 @@ class DiffParsingTests(unittest.TestCase):
         )
 
 
+class AstGrepStreamParsingTests(unittest.TestCase):
+    def test_malformed_stream_json_returns_structured_error(self) -> None:
+        module = load_match_module()
+        command_seen: list[str] = []
+
+        def fake_run_command(args: list[str], check: bool = True):
+            command_seen.extend(args)
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout='{"text": "ok", "range": {}}\n{bad json}\n',
+                stderr="",
+            )
+
+        original_run_command = module.run_command
+        module.run_command = fake_run_command
+        try:
+            matches, error = module.ast_grep_matches(
+                "/usr/local/bin/sg",
+                Path("/tmp/example.py"),
+                "python",
+                "function_definition",
+            )
+        finally:
+            module.run_command = original_run_command
+
+        self.assertEqual(matches, [])
+        self.assertIn("sg run", error)
+        self.assertIn("/tmp/example.py", error)
+        self.assertIn("line 2", error)
+        self.assertIn("{bad json}", error)
+        self.assertIn("Rerun ast-grep", error)
+        self.assertIn("--json=stream", " ".join(command_seen))
+
+
+class SummaryAccountingTests(unittest.TestCase):
+    def test_record_analysis_state_counts_each_state(self) -> None:
+        module = load_summary_module()
+        summary = module.empty_summary()
+
+        module.record_analysis_state(summary, "eligible")
+        module.record_analysis_state(summary, "analyzed")
+        module.record_analysis_state(summary, "unsupported")
+        module.record_analysis_state(summary, "skipped")
+        module.record_analysis_state(summary, "ignored-state")
+
+        self.assertEqual(
+            summary,
+            {
+                "eligible_files": 2,
+                "analyzed_files": 1,
+                "unsupported_files": 1,
+                "skipped_files": 2,
+            },
+        )
+
+    def test_summarize_uses_summary_accounting_helper(self) -> None:
+        module = load_summary_module()
+        analysis = load_analysis_module()
+        original_analyze_change = module.analyze_change
+
+        states = iter(["eligible", "analyzed", "unsupported", "skipped"])
+
+        def fake_analyze_change(repo, change, agents, sg_info):
+            state = next(states)
+            entry = analysis.base_change(change)
+            entry["ast_status"] = state
+            return entry, state
+
+        module.analyze_change = fake_analyze_change
+        try:
+            result = module.summarize(
+                Path("/tmp/example-repo"),
+                {
+                    "agent_files": [
+                        {
+                            "path": "AGENTS.md",
+                            "scope": ".",
+                            "last_commit": "abc123",
+                            "exists": True,
+                            "tracked": True,
+                        }
+                    ]
+                },
+                {
+                    "changes": [
+                        {
+                            "path": "one.py",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "two.py",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "three.txt",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "review",
+                        },
+                        {
+                            "path": "four.lock",
+                            "status": "M",
+                            "agent_file": "AGENTS.md",
+                            "doc_impact": "no-doc-impact",
+                        },
+                    ]
+                },
+                sg_path="/not/a/real/sg",
+            )
+        finally:
+            module.analyze_change = original_analyze_change
+
+        self.assertEqual(
+            result["summary"],
+            {
+                "eligible_files": 2,
+                "analyzed_files": 1,
+                "unsupported_files": 1,
+                "skipped_files": 1,
+            },
+        )
+        self.assertEqual(
+            [change["path"] for change in result["changes"]],
+            ["one.py", "two.py", "three.txt", "four.lock"],
+        )
+
+
 class MissingAstGrepTests(TempGitRepo):
     def test_missing_sg_returns_advisory_entries_without_failure(self) -> None:
-        module = load_module()
+        module = load_summary_module()
         write(
             self.repo / "src" / "service.py",
             "def load_config(path):\n    return {'path': path}\n",
@@ -179,7 +358,7 @@ class MissingAstGrepTests(TempGitRepo):
 @unittest.skipUnless(shutil.which("sg"), "ast-grep CLI is not installed")
 class AstGrepIntegrationTests(TempGitRepo):
     def test_python_change_reports_enclosing_function_hint(self) -> None:
-        module = load_module()
+        module = load_summary_module()
         write(
             self.repo / "src" / "service.py",
             "\n".join(
@@ -213,7 +392,7 @@ class AstGrepIntegrationTests(TempGitRepo):
         self.assertIn("def load_config", result["changes"][0]["hints"][0]["preview"])
 
     def test_no_doc_impact_files_are_skipped(self) -> None:
-        module = load_module()
+        module = load_summary_module()
         write(self.repo / "package-lock.json", "{}\n")
         result = module.summarize(
             self.repo,
@@ -225,7 +404,7 @@ class AstGrepIntegrationTests(TempGitRepo):
         self.assertEqual(result["summary"]["skipped_files"], 1)
 
     def test_smoke_supported_languages_do_not_crash(self) -> None:
-        module = load_module()
+        module = load_summary_module()
         samples = {
             "script.sh": ("bash", "greet() {\n  echo hello\n}\n"),
             "module.c": ("c", "int greet(void) {\n  return 1;\n}\n"),

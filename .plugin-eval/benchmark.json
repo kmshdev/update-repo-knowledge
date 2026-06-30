@@ -1,0 +1,82 @@
+{
+  "kind": "plugin-eval-benchmark",
+  "schemaVersion": 2,
+  "version": 2,
+  "targetKind": "skill",
+  "targetName": "update-repo-knowledge",
+  "runner": {
+    "type": "codex-cli",
+    "model": "gpt-5.5",
+    "sandbox": "workspace-write",
+    "approvalPolicy": "never",
+    "extraArgs": []
+  },
+  "workspace": {
+    "sourcePath": "/tmp/update-repo-knowledge-benchmark-workspace",
+    "setupMode": "copy",
+    "preserve": "on-failure"
+  },
+  "targetProvisioning": {
+    "mode": "isolated-skill-home"
+  },
+  "verifiers": {
+    "commands": [
+      "test -f Provenance.md",
+      "grep -q \"Changed Claims\" Provenance.md",
+      "grep -q \"Validation\" Provenance.md"
+    ]
+  },
+  "notes": [
+    "Use disposable fixture repositories only. Do not benchmark against a real project checkout.",
+    "Each scenario must prove the skill runs evidence scripts before changing durable docs.",
+    "Strict checker semantics are expected: missing AGENTS.md remains an initial-setup blocker unless the prompt asks for setup."
+  ],
+  "setupQuestions": [
+    "Does the run invoke find_agents_baseline.py, knowledge_diff.py, and check_knowledge_store.py before editing docs?",
+    "Does the run keep AGENTS.md concise and update leaf docs first?",
+    "Does the run flag adapter drift instead of duplicating instructions into CLAUDE.md?",
+    "Does the run leave durable docs unchanged when evidence does not prove behavior changed?",
+    "Does the final answer include provenance and validation evidence?"
+  ],
+  "scenarios": [
+    {
+      "id": "polyglot-post-change-doc-refresh",
+      "title": "Post-change docs refresh in a polyglot repo",
+      "purpose": "Verify that the skill handles a repo with Python, TypeScript, and Rust source changes without assuming one project language.",
+      "userInput": "Use the local Codex skill \"update-repo-knowledge\". In this disposable repo, refresh repository knowledge after the staged Python, TypeScript, and Rust source changes. Keep AGENTS.md short, update leaf docs before maps, and write a provenance report to Provenance.md.",
+      "successChecklist": [
+        "The run invokes the baseline, diff, and knowledge-store checker scripts before editing docs.",
+        "The run inspects only source and docs needed for review or uncertain findings.",
+        "The run updates docs for proven behavior changes and avoids language-specific assumptions.",
+        "The run leaves AGENTS.md unchanged unless a map, invariant, command, or cross-link changed.",
+        "Provenance.md lists changed claims and cites source files, diffs, tests, or validation commands."
+      ]
+    },
+    {
+      "id": "adapter-drift-between-agents-and-claude",
+      "title": "Adapter drift between AGENTS.md and CLAUDE.md",
+      "purpose": "Verify that tool-specific instruction files are treated as adapters unless declared canonical.",
+      "userInput": "Use the local Codex skill \"update-repo-knowledge\". This disposable repo has AGENTS.md and a CLAUDE.md file with extra manual instructions. Detect and report adapter drift without copying canonical instructions into CLAUDE.md. Write findings and validation to Provenance.md.",
+      "successChecklist": [
+        "The run identifies CLAUDE.md as an adapter under the nearest AGENTS.md scope.",
+        "The run reports adapter drift or adapter extra content with exact file evidence.",
+        "The run does not manually duplicate AGENTS.md content into CLAUDE.md.",
+        "The run preserves strict checker output instead of weakening validation semantics.",
+        "Provenance.md records unchanged maps and open questions when intent is not proven."
+      ]
+    },
+    {
+      "id": "no-op-when-diff-does-not-prove-doc-change",
+      "title": "No-op or refusal when evidence is insufficient",
+      "purpose": "Verify that the skill narrows or refuses durable docs edits when a diff is vague.",
+      "userInput": "Use the local Codex skill \"update-repo-knowledge\". The disposable repo has a vague source diff that does not prove user-visible behavior, architecture, commands, or agent routes changed. Do not update durable docs unless evidence supports it. Write Provenance.md with open questions and validation.",
+      "successChecklist": [
+        "The run gathers baseline, diff, and checker evidence before deciding.",
+        "The run leaves durable docs unchanged when the diff does not prove a changed claim.",
+        "The run records an Open Questions section instead of guessing intent.",
+        "The run reports the exact script output or file evidence behind the no-op decision.",
+        "The final answer states that no durable docs were changed."
+      ]
+    }
+  ]
+}

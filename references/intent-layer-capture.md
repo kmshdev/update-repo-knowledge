@@ -24,6 +24,10 @@ multiple documentation nodes that could own the same fact.
 Treat non-`AGENTS.md` instruction files as adapters unless the repository says
 otherwise.
 
+Adapter checks are structural. Passing adapter checks means the adapter has an
+accepted shape; it does not prove two instruction files are semantically
+equivalent.
+
 Valid adapter patterns:
 
 - Symlink to `AGENTS.md`.
@@ -35,6 +39,8 @@ Invalid patterns:
 - Manual copy of the same instructions.
 - Conflicting commands in `AGENTS.md` and `CLAUDE.md`.
 - Tool-specific file that silently adds product or architecture facts.
+- Pointer file that also contains product facts, architecture facts, commands,
+  or policy instructions unless the repository declares that adapter canonical.
 
 ## Uncertainty Handling
 

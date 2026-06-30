@@ -45,6 +45,8 @@ refusal rules, read `references/update-rubric.md`.
   --knowledge-diff-json diff.json --json`
 - Check doc store health:
   `uv run --script scripts/check_knowledge_store.py <repo> --json`
+- Run repo-level TDD fixture:
+  `uv run --script scripts/repo_level_tdd_fixture.py --refresh`
 
 Scripts are evidence gatherers, not doc writers. They classify by path, Git
 status, links, and adapter shape; they do not perform AST, semantic, or runtime
@@ -65,7 +67,9 @@ its output.
   of copying sibling context.
 - In this skill, treat `CLAUDE.md`, Cursor rules, and other tool-specific
   instruction files as adapters unless the repository explicitly says they are
-  canonical.
+  canonical. Adapters should be symlinks, generated files with a source marker,
+  or short pointers to `AGENTS.md`; substantial extra instructions in adapters
+  are drift.
 - Record uncertainty instead of guessing. An `uncertain` finding with `Open
   Questions` is valid output.
 
@@ -94,9 +98,11 @@ Report the blocker with the exact script output or file evidence.
 
 For skill changes, use RED-GREEN-REFACTOR:
 
-1. Run disposable fixture scenarios without the skill.
+1. Run disposable fixture scenarios without the skill; use target repositories,
+   not this skill package, to test repository-knowledge findings.
 2. Capture exact failures and rationalizations.
 3. Update this skill or references.
-4. Forward-test with fixture repos only.
+4. Forward-test with fixture repos only. `repo_level_tdd_fixture.py` clones the
+   official `agentskills/agentskills` repository into `/tmp`.
 5. Keep iterating until agents run scripts first, update leaf docs before maps,
    avoid unsupported claims, flag uncertainty, and emit provenance.
