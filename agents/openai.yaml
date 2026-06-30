@@ -1,3 +1,19 @@
 interface:
   display_name: "Update Repo Knowledge"
-  short_description: "Help with Update Repo Knowledge tasks"
+  short_description: "Refresh AGENTS.md maps, docs knowledge stores, adapter drift checks, and provenance after repository changes."
+  default_prompt: "Update repository knowledge from current git evidence. Keep AGENTS.md concise, update leaf docs first, preserve adapter boundaries, and emit a provenance report."
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "cli"
+      value: "git"
+      description: "Reads repository status, tracked AGENTS.md baselines, and changed files."
+    - type: "cli"
+      value: "uv"
+      description: "Runs the skill's Python evidence-gathering scripts."
+    - type: "cli"
+      value: "sg"
+      description: "Optional ast-grep structural hints for changed source files."
