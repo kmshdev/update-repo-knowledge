@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -26,3 +28,90 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
             "https://github.com/agentskills/agentskills.git",
         )
         self.assertEqual(module.DEFAULT_WORK_ROOT, Path("/tmp/update-repo-knowledge-tdd"))
+
+    def test_refresh_refuses_to_delete_non_git_agentskills_dir(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work_root = Path(tmp)
+            repo = work_root / "agentskills"
+            repo.mkdir()
+            important = repo / "important.txt"
+            important.write_text("keep\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError) as context:
+                module.prepare_clone(work_root, refresh=True)
+
+            self.assertIn("Refusing to refresh", str(context.exception))
+            self.assertTrue(important.exists())
+
+    def test_refresh_refuses_to_delete_symlink(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work_root = Path(tmp)
+            target = work_root / "real-agentskills"
+            target.mkdir()
+            repo = work_root / "agentskills"
+            try:
+                repo.symlink_to(target, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symlinks are not available: {error}")
+
+            with self.assertRaises(RuntimeError) as context:
+                module.prepare_clone(work_root, refresh=True)
+
+            self.assertIn("Refusing to refresh", str(context.exception))
+            self.assertTrue(repo.is_symlink())
+
+    def test_run_skill_script_preserves_non_json_stdout(self) -> None:
+        module = load_module()
+
+        def fake_run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                command,
+                2,
+                stdout="plain failure\n",
+                stderr="bad json\n",
+            )
+
+        original_run = module.run
+        module.run = fake_run
+        try:
+            result = module.run_skill_script(
+                Path("/tmp/update-repo-knowledge/scripts/example.py"),
+                [],
+            )
+        finally:
+            module.run = original_run
+
+        self.assertEqual(result["returncode"], 2)
+        self.assertEqual(result["stdout"], {"raw": "plain failure"})
+        self.assertEqual(result["stderr"], "bad json")
+
+    def test_summarize_stops_after_failed_baseline(self) -> None:
+        module = load_module()
+        calls: list[str] = []
+
+        def fake_run_skill_script(script: Path, args: list[str]) -> dict[str, object]:
+            calls.append(script.name)
+            return {
+                "command": [script.name, *args],
+                "returncode": 1,
+                "stdout": {"error": "baseline failed"},
+                "stderr": "baseline failed",
+            }
+
+        original_run_skill_script = module.run_skill_script
+        module.run_skill_script = fake_run_skill_script
+        try:
+            result = module.summarize(
+                Path("/tmp/update-repo-knowledge"),
+                Path("/tmp/target-repo"),
+            )
+        finally:
+            module.run_skill_script = original_run_skill_script
+
+        self.assertEqual(calls, ["find_agents_baseline.py"])
+        self.assertEqual(result["diff"], None)
+        self.assertEqual(result["health"], None)

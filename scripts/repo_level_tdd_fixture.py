@@ -39,7 +39,7 @@ def prepare_clone(work_root: Path, refresh: bool) -> Path:
     """Clone the official agentskills repo into the disposable work root."""
     repo = work_root / "agentskills"
     if refresh and repo.exists():
-        shutil.rmtree(repo)
+        remove_disposable_clone(repo)
 
     work_root.mkdir(parents=True, exist_ok=True)
     if repo.exists():
@@ -55,14 +55,34 @@ def prepare_clone(work_root: Path, refresh: bool) -> Path:
     return repo
 
 
+def remove_disposable_clone(repo: Path) -> None:
+    """Remove an existing checkout only when it is clearly disposable."""
+    if repo.is_symlink() or not repo.is_dir() or not (repo / ".git").exists():
+        raise RuntimeError(
+            "Refusing to refresh non-disposable agentskills path: "
+            f"{repo}. Delete it manually or choose a different --work-root."
+        )
+    shutil.rmtree(repo)
+
+
+def parse_stdout_payload(stdout: str) -> dict[str, object]:
+    """Parse JSON stdout while preserving plain-text failures."""
+    text = stdout.strip()
+    if not text:
+        return {}
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return {"raw": text}
+    if isinstance(payload, dict):
+        return payload
+    return {"value": payload}
+
+
 def run_skill_script(script: Path, args: list[str]) -> dict[str, object]:
     """Run one skill script and return its JSON or captured failure."""
     result = run(["uv", "run", "--script", str(script), *args], script.parents[1])
-    payload: dict[str, object]
-    if result.stdout.strip():
-        payload = json.loads(result.stdout)
-    else:
-        payload = {}
+    payload = parse_stdout_payload(result.stdout)
     return {
         "command": ["uv", "run", "--script", str(script), *args],
         "returncode": result.returncode,
@@ -78,6 +98,14 @@ def summarize(skill_dir: Path, target_repo: Path) -> dict[str, object]:
     check_script = skill_dir / "scripts" / "check_knowledge_store.py"
 
     baseline = run_skill_script(baseline_script, [str(target_repo), "--json"])
+    if baseline["returncode"] != 0:
+        return {
+            "target_repo": str(target_repo),
+            "baseline": baseline,
+            "diff": None,
+            "health": None,
+        }
+
     baseline_json = json.dumps(baseline["stdout"])
     baseline_path = target_repo.parent / "baseline.json"
     baseline_path.write_text(baseline_json, encoding="utf-8")

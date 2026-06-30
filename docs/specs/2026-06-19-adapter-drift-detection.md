@@ -43,8 +43,8 @@ Update `scripts/check_knowledge_store.py` with a narrow adapter-shape classifier
 1. Symlink adapters remain valid.
 2. Short pointer adapters remain valid when they mention `AGENTS.md` or
    `canonical`.
-3. Generated adapters remain valid when they have an explicit generated/source
-   marker and point back to `AGENTS.md` or canonical instructions.
+3. Generated adapters remain valid when they have an explicit generated marker
+   and point back to `AGENTS.md` or canonical instructions.
 4. Adapters with no accepted pointer continue to warn as `adapter-drift`.
 5. Adapters that contain an accepted pointer plus substantial extra content warn
    as `adapter-extra-content`.
@@ -52,7 +52,7 @@ Update `scripts/check_knowledge_store.py` with a narrow adapter-shape classifier
 Use deterministic thresholds, for example:
 
 - `short pointer`: at most 5 nonblank lines and at most 500 characters.
-- `generated adapter`: first 10 lines contain a generated/source marker and an
+- `generated adapter`: first 10 lines contain a generated marker and an
   accepted pointer.
 - `extra content`: accepted pointer present, but the file exceeds the short
   pointer thresholds and is not recognized as generated.
@@ -70,16 +70,17 @@ AGENTS.md.
 Keep `SKILL.md` concise. Add at most one sentence if needed:
 
 ```markdown
-Adapter files should be symlinks, generated files with a source marker, or short
-pointers to `AGENTS.md`; substantial extra instructions in adapters are treated
-as drift.
+Adapter files should be symlinks, generated files with a generated provenance
+marker, or short pointers to `AGENTS.md`; substantial extra instructions in
+adapters are treated as drift.
 ```
 
 Update `references/intent-layer-capture.md` with the concrete adapter boundary:
 
 ```markdown
 Adapter checks are structural. A valid adapter is a symlink, a short canonical
-pointer to `AGENTS.md`, or a generated file with an explicit source marker.
+pointer to `AGENTS.md`, or a generated file with an explicit generated
+provenance marker.
 Pointer files that also contain product facts, architecture facts, commands, or
 policy instructions should be treated as adapter drift unless the repository
 declares that adapter canonical.
@@ -123,12 +124,12 @@ Existing AST tests should remain unchanged.
 
 ## Verification Commands
 
-Run these from `/Users/kmsh/Researcher/update-repo-knowledge`:
+Run these from the repository root:
 
 ```bash
 uv run python -m unittest discover -s tests
 uv run python -m py_compile scripts/*.py tests/*.py
-uv run --with PyYAML /Users/kmsh/.codex/skills/.system/skill-creator/scripts/quick_validate.py .
+uv run --with PyYAML ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py .
 ```
 
 If `uv` is unavailable in the execution environment, use the system Python for
@@ -138,7 +139,7 @@ the first two commands and record that skill validation was not run.
 
 - A pointer-only adapter still passes.
 - A symlink adapter still passes.
-- A generated adapter with a source marker still passes.
+- A generated adapter with a generated provenance marker still passes.
 - A manual adapter with no pointer still emits `adapter-drift`.
 - A pointer adapter with substantial extra instruction content emits
   `adapter-extra-content`.

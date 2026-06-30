@@ -139,6 +139,60 @@ class CheckKnowledgeStoreAdapterTests(unittest.TestCase):
         self.assertIn("points to AGENTS.md", checks[0]["message"])
         self.assertIn("additional instruction content", checks[0]["message"])
 
+    def test_pointer_with_heading_instruction_content_warns(self) -> None:
+        write(
+            self.repo / "CLAUDE.md",
+            "\n".join(
+                [
+                    "Canonical repository instructions live in AGENTS.md.",
+                    "# Always run npm test before changing repository knowledge.",
+                    "",
+                ]
+            ),
+        )
+
+        result = self.validate()
+        checks = adapter_checks(result)
+
+        self.assertEqual([check["id"] for check in checks], ["adapter-extra-content"])
+
+    def test_pointer_with_comment_instruction_content_warns(self) -> None:
+        write(
+            self.repo / "CLAUDE.md",
+            "\n".join(
+                [
+                    "Canonical repository instructions live in AGENTS.md.",
+                    "// Always run npm test before changing repository knowledge.",
+                    "",
+                ]
+            ),
+        )
+
+        result = self.validate()
+        checks = adapter_checks(result)
+
+        self.assertEqual([check["id"] for check in checks], ["adapter-extra-content"])
+
+    def test_generic_source_word_does_not_make_adapter_generated(self) -> None:
+        write(
+            self.repo / "CLAUDE.md",
+            "\n".join(
+                [
+                    "# Source notes",
+                    "",
+                    "Canonical repository instructions live in AGENTS.md.",
+                    "",
+                    "Always run npm test before changing repository knowledge.",
+                    "",
+                ]
+            ),
+        )
+
+        result = self.validate()
+        checks = adapter_checks(result)
+
+        self.assertEqual([check["id"] for check in checks], ["adapter-extra-content"])
+
     def test_nested_agent_scope_uses_nearest_agents_file(self) -> None:
         write(self.repo / "packages" / "api" / "AGENTS.md", "# API Agents\n")
         write(
