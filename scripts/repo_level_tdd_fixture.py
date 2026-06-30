@@ -13,6 +13,7 @@ from pathlib import Path
 
 AGENTSKILLS_REPO_URL = "https://github.com/agentskills/agentskills.git"
 DEFAULT_WORK_ROOT = Path("/tmp/update-repo-knowledge-tdd")
+DISPOSABLE_SENTINEL = ".update-repo-knowledge-disposable"
 
 
 def run(command: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -52,7 +53,24 @@ def prepare_clone(work_root: Path, refresh: bool) -> Path:
         run(["git", "clone", AGENTSKILLS_REPO_URL, str(repo)]),
         f"git clone {AGENTSKILLS_REPO_URL}",
     )
+    mark_disposable_clone(repo)
     return repo
+
+
+def mark_disposable_clone(repo: Path) -> None:
+    """Mark a freshly created fixture clone as safe for future refresh."""
+    (repo / DISPOSABLE_SENTINEL).write_text(
+        "Created by repo_level_tdd_fixture.py for disposable validation.\n",
+        encoding="utf-8",
+    )
+
+
+def is_default_fixture_clone(repo: Path) -> bool:
+    """Return whether repo is the historical default disposable fixture path."""
+    try:
+        return repo.resolve() == (DEFAULT_WORK_ROOT / "agentskills").resolve()
+    except OSError:
+        return False
 
 
 def remove_disposable_clone(repo: Path) -> None:
@@ -60,12 +78,14 @@ def remove_disposable_clone(repo: Path) -> None:
     git_dir = repo / ".git"
     remote = run(["git", "config", "--get", "remote.origin.url"], repo)
     remote_url = remote.stdout.strip()
+    has_disposable_signal = (repo / DISPOSABLE_SENTINEL).is_file() or is_default_fixture_clone(repo)
     if (
         repo.is_symlink()
         or not repo.is_dir()
         or not git_dir.is_dir()
         or remote.returncode != 0
         or remote_url != AGENTSKILLS_REPO_URL
+        or not has_disposable_signal
     ):
         raise RuntimeError(
             "Refusing to refresh non-disposable agentskills path: "

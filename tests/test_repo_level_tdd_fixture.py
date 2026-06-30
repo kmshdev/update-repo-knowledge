@@ -107,6 +107,57 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
             self.assertIn("Refusing to refresh", str(context.exception))
             self.assertTrue(marker.exists())
 
+    def test_refresh_refuses_official_checkout_without_disposable_sentinel(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "agentskills"
+            subprocess.run(["git", "init", str(repo)], check=True, stdout=subprocess.PIPE)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "remote",
+                    "add",
+                    "origin",
+                    module.AGENTSKILLS_REPO_URL,
+                ],
+                check=True,
+            )
+            marker = repo / "important.txt"
+            marker.write_text("keep\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError) as context:
+                module.remove_disposable_clone(repo)
+
+            self.assertIn("Refusing to refresh", str(context.exception))
+            self.assertTrue(marker.exists())
+
+    def test_refresh_removes_official_checkout_with_disposable_sentinel(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "agentskills"
+            subprocess.run(["git", "init", str(repo)], check=True, stdout=subprocess.PIPE)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "remote",
+                    "add",
+                    "origin",
+                    module.AGENTSKILLS_REPO_URL,
+                ],
+                check=True,
+            )
+            module.mark_disposable_clone(repo)
+
+            module.remove_disposable_clone(repo)
+
+            self.assertFalse(repo.exists())
+
     def test_run_skill_script_preserves_non_json_stdout(self) -> None:
         module = load_module()
 
