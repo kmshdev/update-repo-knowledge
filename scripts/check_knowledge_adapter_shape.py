@@ -36,7 +36,10 @@ def adapter_shape(adapter_text: str) -> str:
 
     lines = [line.strip() for line in stripped.splitlines() if line.strip()]
     header = "\n".join(lines[:ADAPTER_GENERATED_HEADER_LINES])
-    if ADAPTER_GENERATED_MARKER_PATTERN.search(header):
+    if (
+        ADAPTER_GENERATED_MARKER_PATTERN.search(header)
+        and ADAPTER_POINTER_PATTERN.search(header)
+    ):
         return "generated-pointer"
     if is_short_pointer(stripped, lines):
         return "short-pointer"

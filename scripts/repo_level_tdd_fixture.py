@@ -57,7 +57,8 @@ def prepare_clone(work_root: Path, refresh: bool) -> Path:
 
 def remove_disposable_clone(repo: Path) -> None:
     """Remove an existing checkout only when it is clearly disposable."""
-    if repo.is_symlink() or not repo.is_dir() or not (repo / ".git").exists():
+    git_dir = repo / ".git"
+    if repo.is_symlink() or not repo.is_dir() or not git_dir.is_dir():
         raise RuntimeError(
             "Refusing to refresh non-disposable agentskills path: "
             f"{repo}. Delete it manually or choose a different --work-root."

@@ -64,6 +64,22 @@ class RepoLevelTddFixtureTests(unittest.TestCase):
             self.assertIn("Refusing to refresh", str(context.exception))
             self.assertTrue(repo.is_symlink())
 
+    def test_refresh_refuses_to_delete_worktree_style_git_file(self) -> None:
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work_root = Path(tmp)
+            repo = work_root / "agentskills"
+            repo.mkdir()
+            git_file = repo / ".git"
+            git_file.write_text("gitdir: /tmp/example-worktree\n", encoding="utf-8")
+
+            with self.assertRaises(RuntimeError) as context:
+                module.prepare_clone(work_root, refresh=True)
+
+            self.assertIn("Refusing to refresh", str(context.exception))
+            self.assertTrue(git_file.exists())
+
     def test_run_skill_script_preserves_non_json_stdout(self) -> None:
         module = load_module()
 
